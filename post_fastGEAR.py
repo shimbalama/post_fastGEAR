@@ -186,6 +186,9 @@ def make_patches(tuple_of_args):
     y = 1.0
     patches_list = []
     width = 1.5/float(len(order))
+    #print ('gene',gene)
+    #print ('recent_recombinations_dict',len(recent_recombinations_dict), recent_recombinations_dict)
+    #print ('ancestral_recombinations_dict',len(ancestral_recombinations_dict.get('all','')),ancestral_recombinations_dict)
     for j, sample in enumerate(order):
         if sample in lineages:
             c = colors[lineages.get(sample)]
@@ -375,8 +378,8 @@ def get_recombinations(args, gene, age):
     Note that the recent recombinations should be on top of the ancestral ones. (Of course one could draw just one or the other)
     '''
     #get  recombinations
-    if args.g:
-        GOI = parse_list(args.g)
+    if args.b:
+        SOI = parse_list(args.b)
     if os.path.isfile(args.i + '/' + gene + '/output/recombinations_' + age + '.txt'):
         with open(args.i + '/' + gene + '/output/recombinations_' + age + '.txt', 'r') as fin:
             recombinations_dict = defaultdict(lambda: defaultdict(str))
@@ -385,8 +388,8 @@ def get_recombinations(args, gene, age):
             for line in fin:
                 if age == 'recent':
                     start, end, donor_lineage, recipient_strain, _, strain_name = line.strip().split()
-                    if args.g:
-                        if strain_name in GOI:
+                    if args.b:
+                        if strain_name in SOI:
                             recombinations_dict = bits(line, recombinations_dict)
                     else:
                         recombinations_dict = bits(line, recombinations_dict)
