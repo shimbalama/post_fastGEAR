@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
- 
+
 from Bio import SeqIO
 from collections import defaultdict
 from collections import OrderedDict
@@ -27,8 +27,8 @@ def main():
     parser.add_argument("-g", type=str, help="Genes of interest GOI list. Can be comma separated after flag GOI1,GOI2,GOI3 or a file.txt with one GOI per line. GOIs need to be named exactly as per fastGEAR run", default = None)
     parser.add_argument("-b", type=str, help="Sample of interest SOI list. Can be comma separated after flag SOI1,SOI2,SOI3 or a file.txt with one SOI per line. SOIs need to be named exactly as per fastGEAR run", default = None)
     parser.add_argument("-t", type=int, help="Threads")
-    parser.add_argument("-y", type=int, help="Minimum y value to display gene name is scatter plot", default = 4)
-    parser.add_argument("-x", type=int, help="Minimum y value to display gene name is scatter plot", default = 4)
+    parser.add_argument("-y", type=int, help="Minimum y value to display gene name in scatter plot", default = 4)
+    parser.add_argument("-x", type=int, help="Minimum x value to display gene name in scatter plot", default = 4)
     parser.add_argument("-s", type=str2bool, help="Make scatter plot of recent Vs ancestral recombinations", default = True)
     parser.add_argument("-z", type=str2bool, help="Make heatmap of recombinations. Default True", default = True)
     parser.add_argument("-u", type=str2bool, help="Make recombinations per gene plot. Default True", default = True)
@@ -48,7 +48,7 @@ def main():
               '#d2f53c','#fabebe','#008080','#e6beff','#aa6e28',
                '#808000','#000080','#808080','#000000','#aaffc3']#as distaninct as possible
     colors.insert(int(most_common_lineage), yellow)
-    
+
     if args.z:
         print ('making heatmap...')
         #instanciate plot
@@ -56,16 +56,16 @@ def main():
         ax = fig.add_subplot(111, aspect='equal') # Default (x,y), width, height
         for i in range(0, len(genes), args.t):
             tmp = genes[i:i+args.t]
-            tmp = [(gene, args, gene_len_dict, height, order, colors) for gene in tmp] 
+            tmp = [(gene, args, gene_len_dict, height, order, colors) for gene in tmp]
             p = multiprocessing.Pool(processes = args.t)
             tmp_genes = p.map(make_patches, tmp)
             p.close()
             for gene_patch_list in tmp_genes:
                 for gene_patch in gene_patch_list:
-                    ax.add_patch(gene_patch) 
+                    ax.add_patch(gene_patch)
         fig.savefig(args.o + '_heat.png', dpi=300, bbox_inches='tight')
-        plt.close('all')        
-    
+        plt.close('all')
+
     if args.u:
         print ('Making recombination count plot')
         recombinations = defaultdict(int)
@@ -73,9 +73,9 @@ def main():
             chunk = genes[i:i+args.t]
             recent_recombinations_sets = scatter_multi('recent', i, args, chunk)
             for gene_recent, recent_recombinations in recent_recombinations_sets:
-                recombinations[gene_recent] += len(recent_recombinations)     
+                recombinations[gene_recent] += len(recent_recombinations)
             if args.a:
-                ancestral_recombinations_sets = scatter_multi('ancestral', i, args, chunk)        
+                ancestral_recombinations_sets = scatter_multi('ancestral', i, args, chunk)
                 for gene_ancestral, ancestral_recombinations in ancestral_recombinations_sets:
                     recombinations[gene_ancestral] += len(ancestral_recombinations)
         #instanciate plot
@@ -92,7 +92,7 @@ def main():
         plt.legend(legend, ['0-24', '25-49', '50-74','75-99', '100-124','125-149','150-174','175-200'], fontsize=55)
         for gene in recombinations:
             total_length = sum(list(gene_len_dict.values()))
-            x, total_length_so_far, gene_len_percent = get_coords(args, gene_len_dict, gene, total_length) 
+            x, total_length_so_far, gene_len_percent = get_coords(args, gene_len_dict, gene, total_length)
             count = recombinations.get(gene)
             if count in list(range(0,25)):
                 c=colors[0]
@@ -127,7 +127,7 @@ def main():
         data = {'x':[], 'y':[], 'gene':[]}
         for i in range(0, len(genes), args.t):
             chunk = genes[i:i+args.t]
-            recent_recombinations_dicts = scatter_multi('recent', i, args, chunk)   
+            recent_recombinations_dicts = scatter_multi('recent', i, args, chunk)
             ancestral_recombinations_dicts = scatter_multi('ancestral', i, args, chunk)
             for gene_recent, recent_recombinations_dict in recent_recombinations_dicts:
                   data['y'].append(len(recent_recombinations_dict))
@@ -136,7 +136,7 @@ def main():
                   gene_ancestral, ancestral_recombinations_dict = tmp_tuple
                   try: assert data['gene'][i+j] == gene_ancestral
                   except: print (data['gene'][i+j], gene_ancestral)
-                  data['x'].append(len(ancestral_recombinations_dict)) 
+                  data['x'].append(len(ancestral_recombinations_dict))
         # display scatter plot data
         plt.figure(figsize=(15,15))
         plt.title('FastGEAR ancestral Vs recent recombinations', fontsize=20)
@@ -169,13 +169,13 @@ def scatter_multi(when, i, args, tmp):
     p.close()
 
     return recombinations_dicts
- 
+
 def make_patches(tuple_of_args):
- 
+
     '''
     Calculate all patches
     '''
-    
+
     gene, args, gene_len_dict, height, order, colors = tuple_of_args
     recent_recombinations_dict = get_recombinations(args, gene, 'recent')
     ancestral_recombinations_dict = get_recombinations(args, gene, 'ancestral') #-no strain name details
@@ -203,7 +203,7 @@ def make_patches(tuple_of_args):
                 patches_list = overlay_recombinations(recent_recombinations_dict, sample, x, total_length, height, y, patches_list, width, c)
         y -= height
     return patches_list
-   
+
 def overlay_recombinations(recombinations_dict, sample, x, total_length, height, y, patches_list, width, c):
 
     start = recombinations_dict.get(sample).get('start')
@@ -211,8 +211,8 @@ def overlay_recombinations(recombinations_dict, sample, x, total_length, height,
     end = recombinations_dict.get(sample).get('end')
     recombination_len = (x + (end/total_length)) - tmp_x
     p = patches.Rectangle((tmp_x, y - height), recombination_len, height, facecolor=c, edgecolor='black', linewidth=width)
-    patches_list.append(p)    
- 
+    patches_list.append(p)
+
     return patches_list
 
 def parse_list(arg):
@@ -223,7 +223,7 @@ def parse_list(arg):
         GOI=[]
         with open(arg, 'r') as fin:
             for line in fin:
-                GOI.append(line.strip())    
+                GOI.append(line.strip())
     return GOI
 
 def parse_tree(args):
@@ -231,7 +231,7 @@ def parse_tree(args):
     '''
     Get the order of sample in the tree
     '''
-    
+
     if args.b:
        SOI = parse_list(args.b)
     order = []
@@ -266,7 +266,7 @@ def parse_tree(args):
         with open('order_of_samples_from_tree.txt', 'w') as fout:
             for sample in order:
                 fout.write(sample + '\n')
-    height = 1.00/len(order)    
+    height = 1.00/len(order)
 
     return height, order
 
@@ -281,7 +281,7 @@ def parse_genes(args):
     genes_output_folders = glob(args.i + '/*')
     for i, gene_path in enumerate(genes_output_folders):
         if os.path.isfile(gene_path+'/output/recombinations_recent.txt'):
-            if os.path.isfile(gene_path+'/output/lineage_information.txt'):    
+            if os.path.isfile(gene_path+'/output/lineage_information.txt'):
                 with open(gene_path+'/output/recombinations_recent.txt', 'r') as fin:
                     if fin.readline().strip() == '0 RECENT RECOMBINATION EVENTS':
                         if not args.a:# skip if ancestral = Fasle
@@ -301,20 +301,20 @@ def parse_genes(args):
         input_gene = sorted(list(GOI))[0]
         try:  assert len(GOI) == len(gene_len_dict)
         except: print ('Your gene names dont match those in fastGEAR!!!! fastGEAR = ', str(len(gene_len_dict)), 'example gene = ',gene,'ur input = ', str(len(GOI)), 'example gene = ', input_gene)
-    print ('Number of genes is', len(gene_len_dict)) 
+    print ('Number of genes is', len(gene_len_dict))
     #write
     with open('order_and_length_of_genes.txt', 'w') as fout:
         for gene in gene_len_dict:
-            fout.write(gene + '\t' + str(gene_len_dict.get(gene)) +'\n') 
+            fout.write(gene + '\t' + str(gene_len_dict.get(gene)) +'\n')
     return gene_len_dict
 
-   
+
 def get_coords(args, gene_len_dict, gene, total_length):
 
     '''
     Get x coordinates
     '''
-    gene_len = gene_len_dict.get(gene) 
+    gene_len = gene_len_dict.get(gene)
     gene_len_percent = gene_len/total_length
     total_length_so_far = 0
     x = 0.0
@@ -324,17 +324,17 @@ def get_coords(args, gene_len_dict, gene, total_length):
         if previous_gene == gene:
             break
         previous_gene_len = gene_len_dict.get(previous_gene)
-        previous_gene_len_percent = previous_gene_len/total_length    
+        previous_gene_len_percent = previous_gene_len/total_length
         total_length_so_far += previous_gene_len
         x += previous_gene_len_percent
-    
+
     return x, total_length_so_far, gene_len_percent
 
 
 
 def count_recombinations(tuple_of_args):
-    
-    args, gene, recent_or_ancestral = tuple_of_args 
+
+    args, gene, recent_or_ancestral = tuple_of_args
     #get recombination counts (start end are same)
     if args.b:
         SOI = parse_list(args.b)
@@ -354,21 +354,21 @@ def count_recombinations(tuple_of_args):
                 if recent_or_ancestral == 'ancestral':
                     start, end, l1, l2, _ = line.strip().split()
                     recombinations_dict[start + ':' + end] += 1
-    return (gene, recombinations_dict) 
- 
+    return (gene, recombinations_dict)
+
 def bits(line, recombinations_dict):
-    
+
     start, end, donor_lineage, recipient_strain, _, strain_name = line.strip().split()
     sample = strain_name
     recombinations_dict[sample]['start'] = float(start)
     recombinations_dict[sample]['end'] = float(end)
     recombinations_dict[sample]['donor_lineage'] = int(donor_lineage)
     recombinations_dict[sample]['recipient_strain'] = recipient_strain
- 
+
     return recombinations_dict
 
 def get_recombinations(args, gene, age):
-    
+
     '''
     from Pekka
      The way I draw the recombinations:
@@ -399,13 +399,13 @@ def get_recombinations(args, gene, age):
                     recombinations_dict['all']['end'] = float(end)
                     recombinations_dict['all']['lineage1'] = int(l1)#donor
                     recombinations_dict['all']['lineage2'] = int(l2)#recipient
-        return recombinations_dict 
- 
+        return recombinations_dict
+
 def base_lineage(args, gene):
 
     #get base lineage
     lineages = defaultdict(int)
-    if os.path.isfile(args.i + '/' + gene + '/output/lineage_information.txt'): 
+    if os.path.isfile(args.i + '/' + gene + '/output/lineage_information.txt'):
         with open(args.i + '/' + gene + '/output/lineage_information.txt', 'r') as fin:
             fin.readline() #'StrainIndex', 'Lineage', 'Cluster', 'Name'
             for line in fin:
@@ -414,7 +414,7 @@ def base_lineage(args, gene):
                 lineages[sample] = int(lineage)
     else:
         print (gene +' has no base lineage_information.txt')
-    
+
     return lineages
 
 def lineage(args, genes):
@@ -422,7 +422,7 @@ def lineage(args, genes):
     #get base lineage
     lineages = defaultdict(int)
     for gene in genes:
-        if os.path.isfile(args.i + '/' + gene + '/output/lineage_information.txt'): 
+        if os.path.isfile(args.i + '/' + gene + '/output/lineage_information.txt'):
             with open(args.i + '/' + gene + '/output/lineage_information.txt', 'r') as fin:
                 fin.readline() #'StrainIndex', 'Lineage', 'Cluster', 'Name'
                 for line in fin:
@@ -440,10 +440,3 @@ def lineage(args, genes):
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
