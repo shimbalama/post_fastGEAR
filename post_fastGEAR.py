@@ -284,7 +284,6 @@ def parse_genes(args):
     else:
         genes_output_folders = glob(args.i + '/*')
     gene_len_dict = OrderedDict()
-    genes_output_folders = glob(args.i + '/*')
     for i, gene_path in enumerate(genes_output_folders):
         if os.path.isfile(gene_path+'/output/recombinations_recent.txt'):
             if os.path.isfile(gene_path+'/output/lineage_information.txt'):
