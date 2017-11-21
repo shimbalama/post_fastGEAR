@@ -277,6 +277,12 @@ def parse_genes(args):
     '''
     if args.g:
         GOI = parse_list(args.g)
+    if args.g: #BW added this loop to sort the genes (X-axis) by list provided with -g
+        genes_output_folders = []
+        for gene in GOI:
+            genes_output_folders.append(args.i + '/' + gene)
+    else:
+        genes_output_folders = glob(args.i + '/*')
     gene_len_dict = OrderedDict()
     genes_output_folders = glob(args.i + '/*')
     for i, gene_path in enumerate(genes_output_folders):
