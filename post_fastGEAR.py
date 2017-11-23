@@ -35,6 +35,7 @@ def main():
     parser.add_argument("-a", type=str2bool, help="Include ancestral recombination. Default True", default = True)
     parser.add_argument("-r", type=str2bool, help="Exclude genes that had no recombination. Default True", default = True)
     parser.add_argument("-p", type=str, help="Tree file for sample order OR txt file of samples in order one per line must end in .txt or will parse as tree file.")
+    parser.add_argument("-f", type=str, help="File type. Default SVG.", default = 'svg')
     args = parser.parse_args()
 
     #plot heatmap
@@ -44,7 +45,7 @@ def main():
     most_common_lineage = lineage(args, genes)
     print ('most_common_lineage', most_common_lineage)
     yellow = '#ffff00' #most common - background
-    colors = ['blue','red','green','#e6194b','#f58231','#911eb4','#46f0f0','#f032e6',
+    colors = ['blue','green','#e6194b','#f58231','#911eb4','#46f0f0','#f032e6',
               '#d2f53c','#fabebe','#008080','#e6beff','#aa6e28',
                '#808000','#000080','#808080','#000000','#aaffc3']#as distaninct as possible
     colors.insert(int(most_common_lineage), yellow)
@@ -63,9 +64,10 @@ def main():
             for gene_patch_list in tmp_genes:
                 for gene_patch in gene_patch_list:
                     ax.add_patch(gene_patch) 
-        fig.savefig(args.o + '_heat.png', dpi=300, bbox_inches='tight')
+        fig.savefig(args.o + '_heat.' + args.f, dpi=300, bbox_inches='tight')
         plt.close('all')        
-    
+    colors.pop(int(most_common_lineage))#get rid of yellow after using it as background
+
     if args.u:
         print ('Making recombination count plot')
         recombinations = defaultdict(int)
@@ -119,7 +121,7 @@ def main():
             p = patches.Rectangle((x, 0.0), gene_len_percent, height, facecolor=c,edgecolor=None)
             ax.add_patch(p)
         plt.title('Recombinations per ' + str(len(recombinations)) + ' gene')
-        plt.savefig(args.o + '_recombination_count.png', dpi=300, bbox_inches='tight')
+        plt.savefig(args.o + '_recombination_count.' + args.f, dpi=300, bbox_inches='tight')
         plt.close('all')
     if args.s:
         print ('Gettign recombinations per gene')
@@ -149,7 +151,7 @@ def main():
         for label, x, y in zip(data['gene'], data['x'], data['y']):
             if x > int(args.x) and y > int(args.y):
                 plt.annotate(label, xy = (x, y))
-        plt.savefig(args.o + '_scatter.png', dpi=300, bbox_inches='tight')
+        plt.savefig(args.o + '_scatter.' + args.f, dpi=300, bbox_inches='tight')
         plt.close('all')
 
 def str2bool(v):
@@ -260,7 +262,7 @@ def parse_tree(args):
         Phylo.draw(t, do_show=False, axes=ax)
         pylab.axis('off')
         pylab.rcParams.update({'font.size': 0.5})
-        pylab.savefig(args.o+'_tree.png',format='png', bbox_inches='tight', dpi=300)
+        pylab.savefig(args.o+'_tree.' + args.f,format='png', bbox_inches='tight', dpi=300)
         plt.close('all')
         #write
         with open('order_of_samples_from_tree.txt', 'w') as fout:
