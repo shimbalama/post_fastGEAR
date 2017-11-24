@@ -35,7 +35,7 @@ def main():
     parser.add_argument("-a", type=str2bool, help="Include ancestral recombination. Default True", default = True)
     parser.add_argument("-r", type=str2bool, help="Exclude genes that had no recombination. Default True", default = True)
     parser.add_argument("-p", type=str, help="Tree file for sample order OR txt file of samples in order one per line must end in .txt or will parse as tree file.")
-    parser.add_argument("-f", type=str, help="File type. Default SVG.", default = 'svg')
+    parser.add_argument("-f", type=str, help="File type. Default png.", default = 'png')
     args = parser.parse_args()
 
     #plot heatmap
@@ -141,16 +141,19 @@ def main():
                   data['x'].append(len(ancestral_recombinations_dict)) 
         # display scatter plot data
         plt.figure(figsize=(15,15))
+        plt.scatter(data['x'], data['y'], marker = 'o')
         plt.title('FastGEAR ancestral Vs recent recombinations', fontsize=20)
         plt.xlabel('Ancestral', fontsize=15)
         plt.ylabel('Recent', fontsize=15)
-        plt.xticks(list(range(len(data.get('x')))))
-        plt.yticks(list(range(len(data.get('y')))))
-        plt.scatter(data['x'], data['y'], marker = 'o')
+        plt.xticks(list(range(max(data.get('x'))*2)), fontsize=10)#always more recent
+        plt.yticks([x for x in (range(max(data.get('y')) + 20)[::20])], fontsize=10)
         # add labels
-        for label, x, y in zip(data['gene'], data['x'], data['y']):
-            if x > int(args.x) and y > int(args.y):
-                plt.annotate(label, xy = (x, y))
+        with open(args.o + '_scatter_count.csv', 'w') as fout:
+            fout.write('Gene,Recent,Ancestral\n')
+            for label, x, y in zip(data['gene'], data['x'], data['y']):
+                fout.write(','.join([label, str(y), str(x)]) + '\n')    
+                if x > int(args.x) and y > int(args.y):
+                    plt.annotate(label, xy = (x, y), fontsize=15)
         plt.savefig(args.o + '_scatter.' + args.f, dpi=300, bbox_inches='tight')
         plt.close('all')
 
@@ -259,10 +262,10 @@ def parse_tree(args):
         #PLot
         fig = plt.figure(figsize=(15, 55), dpi =300)
         ax = fig.add_subplot(111)
-        Phylo.draw(t, do_show=False, axes=ax)
+        Phylo.draw(t, do_show=False, axes=ax, )
         pylab.axis('off')
         pylab.rcParams.update({'font.size': 0.5})
-        pylab.savefig(args.o+'_tree.' + args.f,format='png', bbox_inches='tight', dpi=300)
+        pylab.savefig(args.o+'_tree.' + args.f,format=args.f, bbox_inches='tight', dpi=300)
         plt.close('all')
         #write
         with open('order_of_samples_from_tree.txt', 'w') as fout:
