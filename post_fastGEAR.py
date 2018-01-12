@@ -85,13 +85,15 @@ def main():
         ax = fig.add_subplot(111, aspect='equal') # Default (x,y), width, height
         #legend
         legend = []
-        for i in range(8):#might need to make this dynamic...
+        for i in range(9):#might need to make this dynamic...
             c=colors[i]
             i+=1.0
             i/=10.0
             p = patches.Rectangle((0.5, i), 0.1, 0.05, facecolor=c,edgecolor='black')
             legend.append(p)
-        plt.legend(legend, ['0-24', '25-49', '50-74','75-99', '100-124','125-149','150-174','175-200'], fontsize=55)
+        plt.legend(legend, ['0-24', '25-49', '50-74','75-99', '100-124','125-149','150-174','175-200', '200+'], fontsize=55)
+        tick_locs = []
+        lens = []
         for gene in recombinations:
             total_length = sum(list(gene_len_dict.values()))
             x, total_length_so_far, gene_len_percent = get_coords(args, gene_len_dict, gene, total_length) 
@@ -112,6 +114,8 @@ def main():
                 c=colors[6]
             elif count in list(range(175,200)):
                 c=colors[7]
+            elif count in list(range(201,1111)):
+                c=colors[8]
             else:
                 print ('number of recombinations exceeds codes ability to color!!!', count)
             if count == 0:
@@ -120,6 +124,11 @@ def main():
                 height = (float(count)/2.0)*0.01
             p = patches.Rectangle((x, 0.0), gene_len_percent, height, facecolor=c,edgecolor=None)
             ax.add_patch(p)
+            tick_locs.append(sum(lens) + gene_len_percent/2.0)#get loc in middle of gene
+            lens.append(gene_len_percent)
+        if len(recombinations) < 33:
+            plt.xticks(tick_locs, list(recombinations.keys()),rotation=45, fontsize = 33)
+            #ax.set_xticklabels(list(recombinations.keys()),rotation=45, fontsize = 33)
         plt.title('Recombinations per ' + str(len(recombinations)) + ' gene')
         plt.savefig(args.o + '_recombination_count.' + args.f, dpi=300, bbox_inches='tight')
         plt.close('all')
@@ -145,7 +154,7 @@ def main():
         plt.title('FastGEAR ancestral Vs recent recombinations', fontsize=20)
         plt.xlabel('Ancestral', fontsize=15)
         plt.ylabel('Recent', fontsize=15)
-        plt.xticks(list(range(max(data.get('x'))*2)), fontsize=10)#always more recent
+        plt.xticks([x for x in (range((max(data.get('x')) + 20)*2)[::20])], fontsize=10)#always more recent
         plt.yticks([x for x in (range(max(data.get('y')) + 20)[::20])], fontsize=10)
         # add labels
         with open(args.o + '_scatter_count.csv', 'w') as fout:
@@ -350,7 +359,7 @@ def count_recombinations(tuple_of_args):
             fin.readline()#Start End Lineage1 Lineage2 log(BF)
             for line in fin:
                 if recent_or_ancestral == 'recent':
-                    start, end, donor_lineage, recipient_strain, _, strain_name = line.strip().split()
+                    start, end, donor_lineage, recipient_strain, _, strain_name = line.strip().split()[:6]
                     if args.b:
                         if strain_name in SOI:
                             recombinations_dict[start + ':' + end] += 1
@@ -363,7 +372,7 @@ def count_recombinations(tuple_of_args):
  
 def bits(line, recombinations_dict):
     
-    start, end, donor_lineage, recipient_strain, _, strain_name = line.strip().split()
+    start, end, donor_lineage, recipient_strain, _, strain_name = line.strip().split()[:6]
     sample = strain_name
     recombinations_dict[sample]['start'] = float(start)
     recombinations_dict[sample]['end'] = float(end)
@@ -392,7 +401,7 @@ def get_recombinations(args, gene, age):
             fin.readline()#Start End DonorLineage RecipientStrain log(BF) StrainName
             for line in fin:
                 if age == 'recent':
-                    start, end, donor_lineage, recipient_strain, _, strain_name = line.strip().split()
+                    start, end, donor_lineage, recipient_strain, _, strain_name = line.strip().split()[:6]
                     if args.b:
                         if strain_name in SOI:
                             recombinations_dict = bits(line, recombinations_dict)
@@ -414,7 +423,7 @@ def base_lineage(args, gene):
         with open(args.i + '/' + gene + '/output/lineage_information.txt', 'r') as fin:
             fin.readline() #'StrainIndex', 'Lineage', 'Cluster', 'Name'
             for line in fin:
-                strain_index, lineage, cluster, name = line.strip().split()
+                strain_index, lineage, cluster, name = line.strip().split()[:4]
                 sample = name.split('.')[0] #Removes any suffix. make more generic
                 lineages[sample] = int(lineage)
     else:
@@ -427,11 +436,12 @@ def lineage(args, genes):
     #get base lineage
     lineages = defaultdict(int)
     for gene in genes:
+        print (gene)
         if os.path.isfile(args.i + '/' + gene + '/output/lineage_information.txt'): 
             with open(args.i + '/' + gene + '/output/lineage_information.txt', 'r') as fin:
                 fin.readline() #'StrainIndex', 'Lineage', 'Cluster', 'Name'
                 for line in fin:
-                    strain_index, lineage, cluster, name = line.strip().split()
+                    strain_index, lineage, cluster, name = line.strip().split()[:4]
                     sample = name.split('.')[0] #Removes any suffix. make more generic
                     lineages[lineage] +=1
         else:
