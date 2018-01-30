@@ -304,7 +304,7 @@ def parse_genes(args):
                 if args.g:
                     if gene not in GOI:
                         continue
-                for record in SeqIO.parse(gene_path + '/' + gene + '.fa','fasta'):
+                for record in SeqIO.parse(glob(gene_path + '/' + gene + '.fa*')[0],'fasta'):
                     gene_len_dict[gene] = len(str(record.seq))
                     break
             else:
