@@ -33,9 +33,9 @@ def main():
     parser.add_argument("-z", type=str2bool, help="Make heatmap of recombinations. Default True", default = True)
     parser.add_argument("-u", type=str2bool, help="Make recombinations per gene plot. Default True", default = True)
     parser.add_argument("-a", type=str2bool, help="Include ancestral recombination. Default True", default = True)
-    parser.add_argument("-r", type=str2bool, help="Exclude genes that had no recombination. Default True", default = True)
+    #parser.add_argument("-r", type=str2bool, help="Exclude genes that had no recombination. Default True", default = True)
     parser.add_argument("-p", type=str, help="Tree file for sample order OR txt file of samples in order one per line must end in .txt or will parse as tree file.")
-    parser.add_argument("-f", type=str, help="File type. Default png.", default = 'png')
+    parser.add_argument("-f", type=str, help="File type. Default png.", default = 'svg')
     args = parser.parse_args()
 
     #plot heatmap
