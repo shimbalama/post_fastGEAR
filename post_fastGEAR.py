@@ -42,13 +42,11 @@ def main():
     height, order = parse_tree(args)
     gene_len_dict = parse_genes(args)
     genes = list(gene_len_dict.keys())
-    most_common_lineage = lineage(args, genes)
-    print ('most_common_lineage', most_common_lineage)
-    yellow = '#ffff00' #most common - background
+    #most_common_lineage = lineage(args, genes)
+    #print ('most_common_lineage', most_common_lineage)
     colors = ['blue','green','#e6194b','#f58231','#911eb4','#46f0f0','#f032e6',
               '#d2f53c','#fabebe','#008080','#e6beff','#aa6e28',
                '#808000','#000080','#808080','#000000','#aaffc3']#as distaninct as possible
-    colors.insert(int(most_common_lineage), yellow)
     
     if args.z:
         print ('making heatmap...')
@@ -66,7 +64,6 @@ def main():
                     ax.add_patch(gene_patch) 
         fig.savefig(args.o + '_heat.' + args.f, dpi=300, bbox_inches='tight')
         plt.close('all')        
-    colors.pop(int(most_common_lineage))#get rid of yellow after using it as background
 
     if args.u:
         print ('Making recombination count plot')
@@ -193,18 +190,23 @@ def make_patches(tuple_of_args):
     gene, args, gene_len_dict, height, order, colors = tuple_of_args
     recent_recombinations_dict = get_recombinations(args, gene, 'recent')
     ancestral_recombinations_dict = get_recombinations(args, gene, 'ancestral') #-no strain name details
-    lineages = base_lineage(args, gene)
+    lineages, base = base_lineage(args, gene)
+    yellow = '#ffff00' #most common - background
+    colors.insert(int(base), yellow)
+
     gene_len = gene_len_dict.get(gene)
     total_length = sum(list(gene_len_dict.values()))
     x, total_length_so_far, gene_len_percent = get_coords(args, gene_len_dict, gene, total_length)
     y = 1.0
     patches_list = []
     width = 1.5/float(len(order))
-    #print ('gene',gene)
+    print ('gene',gene)
     #print ('recent_recombinations_dict',len(recent_recombinations_dict), recent_recombinations_dict)
     #print ('ancestral_recombinations_dict',len(ancestral_recombinations_dict.get('all','')),ancestral_recombinations_dict)
     for j, sample in enumerate(order):
+        #print (j, sample, lineages)
         if sample in lineages:
+            #print (colors, lineages.get(sample))
             c = colors[lineages.get(sample)]
             p = patches.Rectangle((x, y - height), gene_len_percent, height, facecolor=c,edgecolor='black', linewidth=width ) #(x,y), width, height
             patches_list.append(p)
@@ -419,17 +421,25 @@ def base_lineage(args, gene):
 
     #get base lineage
     lineages = defaultdict(int)
+    most_common = defaultdict(int)
     if os.path.isfile(args.i + '/' + gene + '/output/lineage_information.txt'): 
         with open(args.i + '/' + gene + '/output/lineage_information.txt', 'r') as fin:
             fin.readline() #'StrainIndex', 'Lineage', 'Cluster', 'Name'
             for line in fin:
                 strain_index, lineage, cluster, name = line.strip().split()[:4]
-                sample = name.split('.')[0].split('_')[0] #Removes any suffix. make more generic
+                sample = '_'.join(name.split('.')[0].split('_')[:-1]) #Removes any suffix. make more generic ###2DOOOO! Fix this!!!#####
                 lineages[sample] = int(lineage)
+                most_common[lineage] += 1
     else:
         print (gene +' has no base lineage_information.txt')
     
-    return lineages
+    count = 0
+    for lineage in most_common:
+        if most_common.get(lineage) > count:
+            biggest = lineage
+            count = most_common.get(lineage)
+    
+    return lineages, biggest
 
 def lineage(args, genes):
 
