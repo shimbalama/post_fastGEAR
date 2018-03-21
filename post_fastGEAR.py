@@ -26,7 +26,7 @@ def main():
     parser.add_argument("-o", type=str, help="Ouput name")
     parser.add_argument("-g", type=str, help="Genes of interest GOI list. Can be comma separated after flag GOI1,GOI2,GOI3 or a file.txt with one GOI per line. GOIs need to be named exactly as per fastGEAR run", default = None)
     parser.add_argument("-b", type=str, help="Sample of interest SOI list. Can be comma separated after flag SOI1,SOI2,SOI3 or a file.txt with one SOI per line. SOIs need to be named exactly as per fastGEAR run", default = None)
-    parser.add_argument("-t", type=int, help="Threads")
+    parser.add_argument("-t", type=int, help="Threads", default = 4)
     parser.add_argument("-y", type=int, help="Minimum y value to display gene name is scatter plot", default = 4)
     parser.add_argument("-x", type=int, help="Minimum y value to display gene name is scatter plot", default = 4)
     parser.add_argument("-s", type=str2bool, help="Make scatter plot of recent Vs ancestral recombinations", default = True)
@@ -304,7 +304,7 @@ def parse_genes(args):
                 if args.g:
                     if gene not in GOI:
                         continue
-                for record in SeqIO.parse(glob(gene_path + '/' + gene + '.fa*')[0],'fasta'):
+                for record in SeqIO.parse(glob(gene_path + '/' + gene + '.*')[0],'fasta'):
                     gene_len_dict[gene] = len(str(record.seq))
                     break
             else:
@@ -424,7 +424,7 @@ def base_lineage(args, gene):
             fin.readline() #'StrainIndex', 'Lineage', 'Cluster', 'Name'
             for line in fin:
                 strain_index, lineage, cluster, name = line.strip().split()[:4]
-                sample = name.split('.')[0] #Removes any suffix. make more generic
+                sample = name.split('.')[0].split('_')[0] #Removes any suffix. make more generic
                 lineages[sample] = int(lineage)
     else:
         print (gene +' has no base lineage_information.txt')
@@ -442,7 +442,7 @@ def lineage(args, genes):
                 fin.readline() #'StrainIndex', 'Lineage', 'Cluster', 'Name'
                 for line in fin:
                     strain_index, lineage, cluster, name = line.strip().split()[:4]
-                    sample = name.split('.')[0] #Removes any suffix. make more generic
+                    sample = name.split('.')[0].split('_')[0] #Removes any suffix. make more generic
                     lineages[lineage] +=1
         else:
             print (gene +' has no lineage_information.txt')
