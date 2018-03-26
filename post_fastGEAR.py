@@ -35,7 +35,7 @@ def main():
     parser.add_argument("-a", type=str2bool, help="Include ancestral recombination. Default True", default = True)
     #parser.add_argument("-r", type=str2bool, help="Exclude genes that had no recombination. Default True", default = True)
     parser.add_argument("-p", type=str, help="Tree file for sample order OR txt file of samples in order one per line must end in .txt or will parse as tree file.")
-    parser.add_argument("-f", type=str, help="File type. Default png.", default = 'svg')
+    parser.add_argument("-f", type=str, help="File type. Default png.", default = 'png')
     args = parser.parse_args()
 
     #plot heatmap
@@ -190,7 +190,7 @@ def make_patches(tuple_of_args):
     gene, args, gene_len_dict, height, order, colors = tuple_of_args
     recent_recombinations_dict = get_recombinations(args, gene, 'recent')
     ancestral_recombinations_dict = get_recombinations(args, gene, 'ancestral') #-no strain name details
-    lineages, base = base_lineage(args, gene)
+    lineages, base = base_lineage(args, gene, order)
     yellow = '#ffff00' #most common - background
     colors.insert(int(base), yellow)
 
@@ -200,7 +200,6 @@ def make_patches(tuple_of_args):
     y = 1.0
     patches_list = []
     width = 1.5/float(len(order))
-    print ('gene',gene)
     #print ('recent_recombinations_dict',len(recent_recombinations_dict), recent_recombinations_dict)
     #print ('ancestral_recombinations_dict',len(ancestral_recombinations_dict.get('all','')),ancestral_recombinations_dict)
     for j, sample in enumerate(order):
@@ -306,9 +305,15 @@ def parse_genes(args):
                 if args.g:
                     if gene not in GOI:
                         continue
-                for record in SeqIO.parse(glob(gene_path + '/' + gene + '.*')[0],'fasta'):
-                    gene_len_dict[gene] = len(str(record.seq))
-                    break
+                found = False
+                for suffix in ['.fa', '.fasta', '.fna', '.aln', '.fsa']:
+                    if os.path.exists(gene_path + '/' + gene + suffix):
+                        for record in SeqIO.parse(gene_path + '/' + gene + suffix,'fasta'):
+                            gene_len_dict[gene] = len(str(record.seq))
+                            found = True
+                            break
+                    if not found:
+                        print('Cant find gene alignment for ' + gene + ' . Please use one of the following suffixes: .fa', '.fasta', '.fna', '.aln', '.fsa')
             else:
                 print ('missing a file!!!!!!!!!!!!',gene_path+'/output/lineage_information.txt')
         else:
@@ -417,7 +422,7 @@ def get_recombinations(args, gene, age):
                     recombinations_dict['all']['lineage2'] = int(l2)#recipient
         return recombinations_dict 
  
-def base_lineage(args, gene):
+def base_lineage(args, gene, order):
 
     #get base lineage
     lineages = defaultdict(int)
@@ -427,7 +432,11 @@ def base_lineage(args, gene):
             fin.readline() #'StrainIndex', 'Lineage', 'Cluster', 'Name'
             for line in fin:
                 strain_index, lineage, cluster, name = line.strip().split()[:4]
-                sample = '_'.join(name.split('.')[0].split('_')[:-1]) #Removes any suffix. make more generic ###2DOOOO! Fix this!!!#####
+                sample = '_'.join(name.split('.')[0].split('_')[:-1]) #Removes any suffix. And contig number
+                if sample not in order:
+                    sample = name.split('.')[0]
+                    try: assert sample in order
+                    except: print (sample + ' not in -p input !!!!!!!!!')
                 lineages[sample] = int(lineage)
                 most_common[lineage] += 1
     else:
@@ -440,28 +449,6 @@ def base_lineage(args, gene):
             count = most_common.get(lineage)
     
     return lineages, biggest
-
-def lineage(args, genes):
-
-    #get base lineage
-    lineages = defaultdict(int)
-    for gene in genes:
-        print (gene)
-        if os.path.isfile(args.i + '/' + gene + '/output/lineage_information.txt'): 
-            with open(args.i + '/' + gene + '/output/lineage_information.txt', 'r') as fin:
-                fin.readline() #'StrainIndex', 'Lineage', 'Cluster', 'Name'
-                for line in fin:
-                    strain_index, lineage, cluster, name = line.strip().split()[:4]
-                    sample = name.split('.')[0].split('_')[0] #Removes any suffix. make more generic
-                    lineages[lineage] +=1
-        else:
-            print (gene +' has no lineage_information.txt')
-    count = 0
-    for lineage in lineages:
-        if lineages.get(lineage) > count:
-            biggest = lineage
-            count = lineages.get(lineage)
-    return biggest
 
 if __name__ == "__main__":
     main()
