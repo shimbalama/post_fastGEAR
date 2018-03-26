@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
- 
+import copy
 from Bio import SeqIO
 from collections import defaultdict
 from collections import OrderedDict
@@ -188,33 +188,34 @@ def make_patches(tuple_of_args):
     '''
     
     gene, args, gene_len_dict, height, order, colors = tuple_of_args
-    recent_recombinations_dict = get_recombinations(args, gene, 'recent')
-    ancestral_recombinations_dict = get_recombinations(args, gene, 'ancestral') #-no strain name details
+    recent_recombinations_dict = get_recombinations(args, gene, 'recent', order)
+    ancestral_recombinations_dict = get_recombinations(args, gene, 'ancestral', order) #-no strain name details
     lineages, base = base_lineage(args, gene, order)
     yellow = '#ffff00' #most common - background
-    colors.insert(int(base), yellow)
-
+    tmp_colors = copy.deepcopy(colors)
+    tmp_colors.insert(int(base), yellow)
+    
     gene_len = gene_len_dict.get(gene)
     total_length = sum(list(gene_len_dict.values()))
     x, total_length_so_far, gene_len_percent = get_coords(args, gene_len_dict, gene, total_length)
     y = 1.0
     patches_list = []
-    width = 1.5/float(len(order))
-    #print ('recent_recombinations_dict',len(recent_recombinations_dict), recent_recombinations_dict)
-    #print ('ancestral_recombinations_dict',len(ancestral_recombinations_dict.get('all','')),ancestral_recombinations_dict)
+    #width = 1.5/float(len(order))
+    width= 0.01
     for j, sample in enumerate(order):
-        #print (j, sample, lineages)
         if sample in lineages:
-            #print (colors, lineages.get(sample))
-            c = colors[lineages.get(sample)]
+            c = tmp_colors[lineages.get(sample)]
+            if lineages.get(sample) != int(base) and c == '#ffff00':
+                print (gene, sample, base, c, lineages.get(sample))
+                print(tmp_colors)
             p = patches.Rectangle((x, y - height), gene_len_percent, height, facecolor=c,edgecolor='black', linewidth=width ) #(x,y), width, height
             patches_list.append(p)
             if len(ancestral_recombinations_dict) > 0:#identify the strains in the recipient lineage - lineage2 == lineages.get(sample)
                 if int(ancestral_recombinations_dict.get('all').get('lineage2')) == int(lineages.get(sample)):
-                    c = colors[int(ancestral_recombinations_dict.get('all').get('lineage1'))]#use color of donor lineage
+                    c = tmp_colors[int(ancestral_recombinations_dict.get('all').get('lineage1'))]#use color of donor lineage
                     patches_list = overlay_recombinations(ancestral_recombinations_dict, 'all', x, total_length, height, y, patches_list, width, c)
             if sample in recent_recombinations_dict:#recent ontop of ancestral
-                c = colors[recent_recombinations_dict.get(sample).get('donor_lineage')]
+                c = tmp_colors[recent_recombinations_dict.get(sample).get('donor_lineage')]
                 patches_list = overlay_recombinations(recent_recombinations_dict, sample, x, total_length, height, y, patches_list, width, c)
         y -= height
     return patches_list
@@ -312,8 +313,8 @@ def parse_genes(args):
                             gene_len_dict[gene] = len(str(record.seq))
                             found = True
                             break
-                    if not found:
-                        print('Cant find gene alignment for ' + gene + ' . Please use one of the following suffixes: .fa', '.fasta', '.fna', '.aln', '.fsa')
+                if not found:
+                    print('Cant find gene alignment for ' + gene + ' . Please use one of the following suffixes: .fa', '.fasta', '.fna', '.aln', '.fsa')
             else:
                 print ('missing a file!!!!!!!!!!!!',gene_path+'/output/lineage_information.txt')
         else:
@@ -377,10 +378,10 @@ def count_recombinations(tuple_of_args):
                     recombinations_dict[start + ':' + end] += 1
     return (gene, recombinations_dict) 
  
-def bits(line, recombinations_dict):
+def bits(line, recombinations_dict, order):
     
     start, end, donor_lineage, recipient_strain, _, strain_name = line.strip().split()[:6]
-    sample = strain_name
+    sample = get_sample_sample(strain_name, order)
     recombinations_dict[sample]['start'] = float(start)
     recombinations_dict[sample]['end'] = float(end)
     recombinations_dict[sample]['donor_lineage'] = int(donor_lineage)
@@ -388,7 +389,7 @@ def bits(line, recombinations_dict):
  
     return recombinations_dict
 
-def get_recombinations(args, gene, age):
+def get_recombinations(args, gene, age, order):
     
     '''
     from Pekka
@@ -411,9 +412,9 @@ def get_recombinations(args, gene, age):
                     start, end, donor_lineage, recipient_strain, _, strain_name = line.strip().split()[:6]
                     if args.b:
                         if strain_name in SOI:
-                            recombinations_dict = bits(line, recombinations_dict)
+                            recombinations_dict = bits(line, recombinations_dict, order)
                     else:
-                        recombinations_dict = bits(line, recombinations_dict)
+                        recombinations_dict = bits(line, recombinations_dict, order)
                 if age == 'ancestral':
                     start, end, l1, l2, _ = line.strip().split()
                     recombinations_dict['all']['start'] = float(start)
@@ -421,6 +422,19 @@ def get_recombinations(args, gene, age):
                     recombinations_dict['all']['lineage1'] = int(l1)#donor
                     recombinations_dict['all']['lineage2'] = int(l2)#recipient
         return recombinations_dict 
+
+def get_sample_sample(name,order):
+
+    sample = '_'.join(name.split('.')[0].split('_')[:-1]) #Removes any suffix. And contig number
+    if 'MGAS5005' in name:
+        sample = 'LD_MGAS5005_M1'
+    if sample not in order:
+        sample = name.split('.')[0]
+        try: assert sample in order
+        except: print (gene, sample + ' not in -p input !!!!!!!!!', name)
+    
+    return sample
+
  
 def base_lineage(args, gene, order):
 
@@ -432,11 +446,7 @@ def base_lineage(args, gene, order):
             fin.readline() #'StrainIndex', 'Lineage', 'Cluster', 'Name'
             for line in fin:
                 strain_index, lineage, cluster, name = line.strip().split()[:4]
-                sample = '_'.join(name.split('.')[0].split('_')[:-1]) #Removes any suffix. And contig number
-                if sample not in order:
-                    sample = name.split('.')[0]
-                    try: assert sample in order
-                    except: print (sample + ' not in -p input !!!!!!!!!')
+                sample = get_sample_sample(name, order)
                 lineages[sample] = int(lineage)
                 most_common[lineage] += 1
     else:
