@@ -16,6 +16,7 @@ from Bio import Phylo
 import pylab
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
+from matplotlib.ticker import FuncFormatter, MaxNLocator, MultipleLocator, FixedLocator, FormatStrFormatter #BW: for x-axis labelling
 import os.path
 
 def main():
@@ -36,10 +37,12 @@ def main():
     #parser.add_argument("-r", type=str2bool, help="Exclude genes that had no recombination. Default True", default = True)
     parser.add_argument("-p", type=str, help="Tree file for sample order OR txt file of samples in order one per line must end in .txt or will parse as tree file.")
     parser.add_argument("-f", type=str, help="File type. Default png.", default = 'png')
+    parser.add_argument("-xs", type=int, help="Heatmap x-axis font size", default = '10')
+    parser.add_argument("-d", type=int, help="Division factor to draw ticks in heatmap. If 0, will use gene boundaries", default = 10) #BW: for x-axis labelling
     args = parser.parse_args()
 
     #plot heatmap
-    height, order = parse_tree(args)
+    MaxYaxis, height, order = parse_tree(args) #BW added MaxYaxis to calculate y-axis ticks
     gene_len_dict = parse_genes(args)
     genes = list(gene_len_dict.keys())
     #most_common_lineage = lineage(args, genes)
@@ -47,23 +50,46 @@ def main():
     colors = ['blue','green','#e6194b','#f58231','#911eb4','#46f0f0','#f032e6',
               '#d2f53c','#fabebe','#008080','#e6beff','#aa6e28',
                '#808000','#000080','#808080','#000000','#aaffc3']#as distaninct as possible
-    
+
     if args.z:
         print ('making heatmap...')
         #instanciate plot
         fig = plt.figure(figsize=(50, 50), dpi =300)
         ax = fig.add_subplot(111, aspect='equal') # Default (x,y), width, height
+        print("height: " + str(MaxYaxis) + ", cumulativeLen: " + str(cumulativeLen)) #BW: print out height (y-axis) and cumulative length of genes for x-axis.
         for i in range(0, len(genes), args.t):
             tmp = genes[i:i+args.t]
-            tmp = [(gene, args, gene_len_dict, height, order, colors) for gene in tmp] 
+            tmp = [(gene, args, gene_len_dict, height, order, colors) for gene in tmp]
             p = multiprocessing.Pool(processes = args.t)
             tmp_genes = p.map(make_patches, tmp)
             p.close()
             for gene_patch_list in tmp_genes:
                 for gene_patch in gene_patch_list:
-                    ax.add_patch(gene_patch) 
+                    ax.add_patch(gene_patch)
+
+        #BW Divide x axis by number of fractions, or by gene boundaries, depending on -d flag
+        cumulativeLenlist = []
+        if args.d is 0:
+            #Set ticks by genes
+            cumulativeLen2 = 0
+            listOfGenes = []
+            for key in gene_len_dict:
+                cumulativeLen2 = cumulativeLen2 + gene_len_dict[key]
+                cumulativeLenlist.append(cumulativeLen2/cumulativeLen)
+                listOfGenes.append(key) #get list of genes for label
+                ax.xaxis.set_major_locator(FixedLocator(cumulativeLenlist)) #Sets ticks at intervals of given by -d.
+                ax.set_xticklabels((listOfGenes), fontsize=args.xs, rotation='vertical')
+
+        else:
+            divisionFactor = args.d
+            ax.xaxis.set_major_locator(MultipleLocator(1/divisionFactor)) #Sets ticks at intervals of given by -d.
+            ax.set_xticklabels(frange((0-(cumulativeLen/divisionFactor)), cumulativeLen, cumulativeLen/divisionFactor), fontsize=args.xs, rotation='vertical')
+
+        ax.yaxis.set_major_locator(MultipleLocator(1/MaxYaxis)) #BW Sets y-axis ticks to match the number of taxa
+        ax.set_yticklabels(frange(0, MaxYaxis, 1/MaxYaxis), fontsize=0) #Sets labels for y-axis to invisible (size 0)
+
         fig.savefig(args.o + '_heat.' + args.f, dpi=300, bbox_inches='tight')
-        plt.close('all')        
+        plt.close('all')
 
     if args.u:
         print ('Making recombination count plot')
@@ -72,9 +98,9 @@ def main():
             chunk = genes[i:i+args.t]
             recent_recombinations_sets = scatter_multi('recent', i, args, chunk)
             for gene_recent, recent_recombinations in recent_recombinations_sets:
-                recombinations[gene_recent] += len(recent_recombinations)     
+                recombinations[gene_recent] += len(recent_recombinations)
             if args.a:
-                ancestral_recombinations_sets = scatter_multi('ancestral', i, args, chunk)        
+                ancestral_recombinations_sets = scatter_multi('ancestral', i, args, chunk)
                 for gene_ancestral, ancestral_recombinations in ancestral_recombinations_sets:
                     recombinations[gene_ancestral] += len(ancestral_recombinations)
         #instanciate plot
@@ -93,7 +119,7 @@ def main():
         lens = []
         for gene in recombinations:
             total_length = sum(list(gene_len_dict.values()))
-            x, total_length_so_far, gene_len_percent = get_coords(args, gene_len_dict, gene, total_length) 
+            x, total_length_so_far, gene_len_percent = get_coords(args, gene_len_dict, gene, total_length)
             count = recombinations.get(gene)
             if count in list(range(0,25)):
                 c=colors[0]
@@ -130,12 +156,12 @@ def main():
         plt.savefig(args.o + '_recombination_count.' + args.f, dpi=300, bbox_inches='tight')
         plt.close('all')
     if args.s:
-        print ('Gettign recombinations per gene')
+        print ('Getting recombinations per gene')
         #plot recent (y) Vs ancestral (x) on scatter plot
         data = {'x':[], 'y':[], 'gene':[]}
         for i in range(0, len(genes), args.t):
             chunk = genes[i:i+args.t]
-            recent_recombinations_dicts = scatter_multi('recent', i, args, chunk)   
+            recent_recombinations_dicts = scatter_multi('recent', i, args, chunk)
             ancestral_recombinations_dicts = scatter_multi('ancestral', i, args, chunk)
             for gene_recent, recent_recombinations_dict in recent_recombinations_dicts:
                   data['y'].append(len(recent_recombinations_dict))
@@ -144,7 +170,7 @@ def main():
                   gene_ancestral, ancestral_recombinations_dict = tmp_tuple
                   try: assert data['gene'][i+j] == gene_ancestral
                   except: print (data['gene'][i+j], gene_ancestral)
-                  data['x'].append(len(ancestral_recombinations_dict)) 
+                  data['x'].append(len(ancestral_recombinations_dict))
         # display scatter plot data
         plt.figure(figsize=(15,15))
         plt.scatter(data['x'], data['y'], marker = 'o')
@@ -157,7 +183,7 @@ def main():
         with open(args.o + '_scatter_count.csv', 'w') as fout:
             fout.write('Gene,Recent,Ancestral\n')
             for label, x, y in zip(data['gene'], data['x'], data['y']):
-                fout.write(','.join([label, str(y), str(x)]) + '\n')    
+                fout.write(','.join([label, str(y), str(x)]) + '\n')
                 if x > int(args.x) and y > int(args.y):
                     plt.annotate(label, xy = (x, y), fontsize=15)
         plt.savefig(args.o + '_scatter.' + args.f, dpi=300, bbox_inches='tight')
@@ -180,13 +206,13 @@ def scatter_multi(when, i, args, tmp):
     p.close()
 
     return recombinations_dicts
- 
+
 def make_patches(tuple_of_args):
- 
+
     '''
     Calculate all patches
     '''
-    
+
     gene, args, gene_len_dict, height, order, colors = tuple_of_args
     recent_recombinations_dict = get_recombinations(args, gene, 'recent', order)
     ancestral_recombinations_dict = get_recombinations(args, gene, 'ancestral', order) #-no strain name details
@@ -194,7 +220,7 @@ def make_patches(tuple_of_args):
     yellow = '#ffff00' #most common - background
     tmp_colors = copy.deepcopy(colors)
     tmp_colors.insert(int(base), yellow)
-    
+
     gene_len = gene_len_dict.get(gene)
     total_length = sum(list(gene_len_dict.values()))
     x, total_length_so_far, gene_len_percent = get_coords(args, gene_len_dict, gene, total_length)
@@ -219,7 +245,7 @@ def make_patches(tuple_of_args):
                 patches_list = overlay_recombinations(recent_recombinations_dict, sample, x, total_length, height, y, patches_list, width, c)
         y -= height
     return patches_list
-   
+
 def overlay_recombinations(recombinations_dict, sample, x, total_length, height, y, patches_list, width, c):
 
     start = recombinations_dict.get(sample).get('start')
@@ -227,8 +253,8 @@ def overlay_recombinations(recombinations_dict, sample, x, total_length, height,
     end = recombinations_dict.get(sample).get('end')
     recombination_len = (x + (end/total_length)) - tmp_x
     p = patches.Rectangle((tmp_x, y - height), recombination_len, height, facecolor=c, edgecolor='black', linewidth=width)
-    patches_list.append(p)    
- 
+    patches_list.append(p)
+
     return patches_list
 
 def parse_list(arg):
@@ -239,7 +265,7 @@ def parse_list(arg):
         GOI=[]
         with open(arg, 'r') as fin:
             for line in fin:
-                GOI.append(line.strip())    
+                GOI.append(line.strip())
     return GOI
 
 def parse_tree(args):
@@ -247,7 +273,7 @@ def parse_tree(args):
     '''
     Get the order of sample in the tree
     '''
-    
+
     if args.b:
        SOI = parse_list(args.b)
     order = []
@@ -282,9 +308,11 @@ def parse_tree(args):
         with open('order_of_samples_from_tree.txt', 'w') as fout:
             for sample in order:
                 fout.write(sample + '\n')
-    height = 1.00/len(order)    
+    height = 1.00/len(order)
 
-    return height, order
+    MaxYaxis = len(order) # BW Get Y axis maximum value
+    return MaxYaxis, height, order
+
 
 def parse_genes(args):
 
@@ -293,11 +321,17 @@ def parse_genes(args):
     '''
     if args.g:
         GOI = parse_list(args.g)
+    if args.g:
+        genes_output_folders = []
+        for gene in GOI:
+            genes_output_folders.append(args.i + '/' + gene)
+    else:
+        genes_output_folders = glob(args.i + '/*')
+
     gene_len_dict = OrderedDict()
-    genes_output_folders = glob(args.i + '/*')
     for i, gene_path in enumerate(genes_output_folders):
         if os.path.isfile(gene_path+'/output/recombinations_recent.txt'):
-            if os.path.isfile(gene_path+'/output/lineage_information.txt'):    
+            if os.path.isfile(gene_path+'/output/lineage_information.txt'):
                 with open(gene_path+'/output/recombinations_recent.txt', 'r') as fin:
                     if fin.readline().strip() == '0 RECENT RECOMBINATION EVENTS':
                         if not args.a:# skip if ancestral = Fasle
@@ -323,20 +357,25 @@ def parse_genes(args):
         input_gene = sorted(list(GOI))[0]
         try:  assert len(GOI) == len(gene_len_dict)
         except: print ('Your gene names dont match those in fastGEAR!!!! fastGEAR = ', str(len(gene_len_dict)), 'example gene = ',gene,'ur input = ', str(len(GOI)), 'example gene = ', input_gene)
-    print ('Number of genes is', len(gene_len_dict)) 
+    print ('Number of genes is', len(gene_len_dict))
     #write
+    global cumulativeLen #BW declare global cumulativeLen variable so that it can be used for the heatmap Y-axis
+    cumulativeLen = 0
+
+
     with open('order_and_length_of_genes.txt', 'w') as fout:
         for gene in gene_len_dict:
-            fout.write(gene + '\t' + str(gene_len_dict.get(gene)) +'\n') 
+            cumulativeLen = cumulativeLen + gene_len_dict.get(gene) #BW
+            fout.write(gene + '\t' + str(gene_len_dict.get(gene)) +'\t' + str(cumulativeLen) + '\n') #BW added cumulativeLen
     return gene_len_dict
 
-   
+
 def get_coords(args, gene_len_dict, gene, total_length):
 
     '''
     Get x coordinates
     '''
-    gene_len = gene_len_dict.get(gene) 
+    gene_len = gene_len_dict.get(gene)
     gene_len_percent = gene_len/total_length
     total_length_so_far = 0
     x = 0.0
@@ -346,17 +385,17 @@ def get_coords(args, gene_len_dict, gene, total_length):
         if previous_gene == gene:
             break
         previous_gene_len = gene_len_dict.get(previous_gene)
-        previous_gene_len_percent = previous_gene_len/total_length    
+        previous_gene_len_percent = previous_gene_len/total_length
         total_length_so_far += previous_gene_len
         x += previous_gene_len_percent
-    
+
     return x, total_length_so_far, gene_len_percent
 
 
 
 def count_recombinations(tuple_of_args):
-    
-    args, gene, recent_or_ancestral = tuple_of_args 
+
+    args, gene, recent_or_ancestral = tuple_of_args
     #get recombination counts (start end are same)
     if args.b:
         SOI = parse_list(args.b)
@@ -376,21 +415,21 @@ def count_recombinations(tuple_of_args):
                 if recent_or_ancestral == 'ancestral':
                     start, end, l1, l2, _ = line.strip().split()
                     recombinations_dict[start + ':' + end] += 1
-    return (gene, recombinations_dict) 
- 
+    return (gene, recombinations_dict)
+
 def bits(line, recombinations_dict, order):
-    
+
     start, end, donor_lineage, recipient_strain, _, strain_name = line.strip().split()[:6]
     sample = get_sample_sample(strain_name, order)
     recombinations_dict[sample]['start'] = float(start)
     recombinations_dict[sample]['end'] = float(end)
     recombinations_dict[sample]['donor_lineage'] = int(donor_lineage)
     recombinations_dict[sample]['recipient_strain'] = recipient_strain
- 
+
     return recombinations_dict
 
 def get_recombinations(args, gene, age, order):
-    
+
     '''
     from Pekka
      The way I draw the recombinations:
@@ -421,10 +460,9 @@ def get_recombinations(args, gene, age, order):
                     recombinations_dict['all']['end'] = float(end)
                     recombinations_dict['all']['lineage1'] = int(l1)#donor
                     recombinations_dict['all']['lineage2'] = int(l2)#recipient
-        return recombinations_dict 
+        return recombinations_dict
 
 def get_sample_sample(name,order):
-
     sample = '_'.join(name.split('.')[0].split('_')[:-1]) #Removes any suffix. And contig number
     if 'MGAS5005' in name:
         sample = 'LD_MGAS5005_M1'
@@ -432,16 +470,16 @@ def get_sample_sample(name,order):
         sample = name.split('.')[0]
         try: assert sample in order
         except: print (gene, sample + ' not in -p input !!!!!!!!!', name)
-    
+
     return sample
 
- 
+
 def base_lineage(args, gene, order):
 
     #get base lineage
     lineages = defaultdict(int)
     most_common = defaultdict(int)
-    if os.path.isfile(args.i + '/' + gene + '/output/lineage_information.txt'): 
+    if os.path.isfile(args.i + '/' + gene + '/output/lineage_information.txt'):
         with open(args.i + '/' + gene + '/output/lineage_information.txt', 'r') as fin:
             fin.readline() #'StrainIndex', 'Lineage', 'Cluster', 'Name'
             for line in fin:
@@ -451,21 +489,28 @@ def base_lineage(args, gene, order):
                 most_common[lineage] += 1
     else:
         print (gene +' has no base lineage_information.txt')
-    
+
     count = 0
     for lineage in most_common:
         if most_common.get(lineage) > count:
             biggest = lineage
             count = most_common.get(lineage)
-    
+
     return lineages, biggest
+
+#Functions added by BW - to relabel axes
+def format_fn(tick_val, tick_pos):
+    if int(tick_val) in xs:
+        return labels[int(tick_val)]
+    else:
+        return ''
+
+def frange(start, stop, step):
+    i = start
+    while i < stop:
+        yield int(i) #BW used int(i) to get rounded numbers
+        i += step
+
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
