@@ -378,10 +378,10 @@ def count_recombinations(tuple_of_args):
                     recombinations_dict[start + ':' + end] += 1
     return (gene, recombinations_dict) 
  
-def bits(line, recombinations_dict, order):
+def bits(line, recombinations_dict, order, gene):
     
     start, end, donor_lineage, recipient_strain, _, strain_name = line.strip().split()[:6]
-    sample = get_sample_sample(strain_name, order)
+    sample = get_sample_sample(strain_name, order, gene)
     recombinations_dict[sample]['start'] = float(start)
     recombinations_dict[sample]['end'] = float(end)
     recombinations_dict[sample]['donor_lineage'] = int(donor_lineage)
@@ -412,9 +412,9 @@ def get_recombinations(args, gene, age, order):
                     start, end, donor_lineage, recipient_strain, _, strain_name = line.strip().split()[:6]
                     if args.b:
                         if strain_name in SOI:
-                            recombinations_dict = bits(line, recombinations_dict, order)
+                            recombinations_dict = bits(line, recombinations_dict, order, gene)
                     else:
-                        recombinations_dict = bits(line, recombinations_dict, order)
+                        recombinations_dict = bits(line, recombinations_dict, order, gene)
                 if age == 'ancestral':
                     start, end, l1, l2, _ = line.strip().split()
                     recombinations_dict['all']['start'] = float(start)
@@ -423,7 +423,7 @@ def get_recombinations(args, gene, age, order):
                     recombinations_dict['all']['lineage2'] = int(l2)#recipient
         return recombinations_dict 
 
-def get_sample_sample(name,order):
+def get_sample_sample(name, order, gene):
 
     sample = '_'.join(name.split('.')[0].split('_')[:-1]) #Removes any suffix. And contig number
     if 'MGAS5005' in name:
@@ -446,7 +446,7 @@ def base_lineage(args, gene, order):
             fin.readline() #'StrainIndex', 'Lineage', 'Cluster', 'Name'
             for line in fin:
                 strain_index, lineage, cluster, name = line.strip().split()[:4]
-                sample = get_sample_sample(name, order)
+                sample = get_sample_sample(name, order, gene)
                 lineages[sample] = int(lineage)
                 most_common[lineage] += 1
     else:
